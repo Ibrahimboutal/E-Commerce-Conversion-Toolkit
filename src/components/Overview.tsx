@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supabase, Store, AbandonedCart, Review } from '../lib/supabase';
 import { ShoppingCart, TrendingUp, DollarSign, Star, AlertCircle } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 type Metrics = {
   totalCarts: number;
@@ -23,6 +25,7 @@ export default function Overview() {
   });
   const [loading, setLoading] = useState(true);
   const [hasStore, setHasStore] = useState(false);
+  const [chartData, setChartData] = useState<any[]>([]);
 
   useEffect(() => {
     loadData();
@@ -78,6 +81,25 @@ export default function Overview() {
       totalReviews,
       averageRating,
     });
+
+    // Process chart data (last 7 days)
+    const last7Days = [...Array(7)].map((_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      return d.toISOString().split('T')[0];
+    }).reverse();
+
+    const dailyRevenue = last7Days.map(date => {
+      const dayRevenue = recoveredCarts
+        .filter(c => c.created_at.startsWith(date))
+        .reduce((sum, c) => sum + Number(c.total_price), 0);
+      return {
+        date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        revenue: dayRevenue
+      };
+    });
+
+    setChartData(dailyRevenue);
   };
 
   if (loading) {
@@ -90,20 +112,24 @@ export default function Overview() {
 
   if (!hasStore) {
     return (
-      <div className="bg-amber-50 border border-amber-200 rounded-lg p-6">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-6"
+      >
         <div className="flex items-start gap-3">
-          <AlertCircle className="w-6 h-6 text-amber-600 flex-shrink-0" />
+          <AlertCircle className="w-6 h-6 text-amber-600 dark:text-amber-500 flex-shrink-0" />
           <div>
-            <h3 className="font-semibold text-amber-900 mb-2">No Store Connected</h3>
-            <p className="text-amber-800 mb-4">
+            <h3 className="font-semibold text-amber-900 dark:text-amber-200 mb-2">No Store Connected</h3>
+            <p className="text-amber-800 dark:text-amber-300 mb-4">
               Connect your e-commerce store to start tracking abandoned carts and analyzing reviews.
             </p>
-            <p className="text-sm text-amber-700">
+            <p className="text-sm text-amber-700 dark:text-amber-400">
               Go to Settings to add your store integration.
             </p>
           </div>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
@@ -153,21 +179,41 @@ export default function Overview() {
       value: metrics.averageRating.toFixed(1),
       icon: Star,
       color: 'bg-yellow-500',
-      textColor: 'text-yellow-700',
-      bgColor: 'bg-yellow-50',
+      textColor: 'text-yellow-700 dark:text-yellow-400',
+      bgColor: 'bg-yellow-50 dark:bg-yellow-900/20',
     },
   ];
+
+  const container = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const item = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0 }
+  };
 
   const recoveryRate = metrics.totalCarts > 0
     ? ((metrics.recovered / metrics.totalCarts) * 100).toFixed(1)
     : 0;
 
   return (
-    <div className="space-y-6">
+    <motion.div
+      variants={container}
+      initial="hidden"
+      animate="show"
+      className="space-y-6"
+    >
       <div>
-        <h2 className="text-2xl font-bold text-slate-900 mb-1">Welcome back!</h2>
-        <p className="text-slate-600">
-          Store: <span className="font-medium">{store?.name}</span>
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">Welcome back!</h2>
+        <p className="text-slate-600 dark:text-slate-400">
+          Store: <span className="font-medium text-slate-900 dark:text-white">{store?.name}</span>
         </p>
       </div>
 
@@ -175,53 +221,106 @@ export default function Overview() {
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
-            <div key={stat.label} className="bg-white rounded-lg border border-slate-200 p-6">
+            <motion.div
+              variants={item}
+              key={stat.label}
+              className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6 hover:shadow-lg transition-shadow"
+            >
               <div className="flex items-center justify-between mb-4">
                 <div className={`${stat.color} p-3 rounded-lg`}>
                   <Icon className="w-6 h-6 text-white" />
                 </div>
               </div>
               <div>
-                <p className="text-slate-600 text-sm mb-1">{stat.label}</p>
-                <p className="text-3xl font-bold text-slate-900">{stat.value}</p>
+                <p className="text-slate-600 dark:text-slate-400 text-sm mb-1">{stat.label}</p>
+                <p className="text-3xl font-bold text-slate-900 dark:text-white">{stat.value}</p>
               </div>
-            </div>
+            </motion.div>
           );
         })}
       </div>
 
-      <div className="bg-white rounded-lg border border-slate-200 p-6">
-        <h3 className="text-lg font-semibold text-slate-900 mb-4">Performance Insights</h3>
-        <div className="grid md:grid-cols-2 gap-6">
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-slate-600">Cart Recovery Rate</span>
-              <span className="font-bold text-emerald-600">{recoveryRate}%</span>
-            </div>
-            <div className="w-full bg-slate-200 rounded-full h-2">
-              <div
-                className="bg-emerald-600 h-2 rounded-full transition-all"
-                style={{ width: `${recoveryRate}%` }}
-              />
-            </div>
+      <div className="grid lg:grid-cols-3 gap-6">
+        <motion.div variants={item} className="lg:col-span-2 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6">
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-6">Revenue Trend</h3>
+          <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.1} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis
+                  dataKey="date"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#64748b' }}
+                />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#64748b' }}
+                  tickFormatter={(value) => `$${value}`}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#fff',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '0.5rem',
+                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                  }}
+                  itemStyle={{ color: '#10b981' }}
+                  formatter={(value: number) => [`$${value}`, 'Revenue']}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="revenue"
+                  stroke="#10b981"
+                  strokeWidth={2}
+                  fillOpacity={1}
+                  fill="url(#colorRevenue)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
+        </motion.div>
 
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-slate-600">Customer Satisfaction</span>
-              <span className="font-bold text-amber-600">
-                {metrics.averageRating.toFixed(1)}/5.0
-              </span>
+        <motion.div variants={item} className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6">
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Performance Insights</h3>
+          <div className="space-y-6">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-slate-600 dark:text-slate-400">Cart Recovery Rate</span>
+                <span className="font-bold text-emerald-600 dark:text-emerald-500">{recoveryRate}%</span>
+              </div>
+              <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
+                <div
+                  className="bg-emerald-600 dark:bg-emerald-500 h-2 rounded-full transition-all"
+                  style={{ width: `${recoveryRate}%` }}
+                />
+              </div>
             </div>
-            <div className="w-full bg-slate-200 rounded-full h-2">
-              <div
-                className="bg-amber-500 h-2 rounded-full transition-all"
-                style={{ width: `${(metrics.averageRating / 5) * 100}%` }}
-              />
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-slate-600 dark:text-slate-400">Customer Satisfaction</span>
+                <span className="font-bold text-amber-600 dark:text-amber-500">
+                  {metrics.averageRating.toFixed(1)}/5.0
+                </span>
+              </div>
+              <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2">
+                <div
+                  className="bg-amber-500 dark:bg-amber-500 h-2 rounded-full transition-all"
+                  style={{ width: `${(metrics.averageRating / 5) * 100}%` }}
+                />
+              </div>
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
-    </div>
+    </motion.div>
   );
 }
