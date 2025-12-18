@@ -1,13 +1,14 @@
 import { useState } from 'react';
-import { ShoppingCart, MessageSquare, Settings, LogOut, BarChart3, Sun, Moon } from 'lucide-react';
+import { ShoppingCart, MessageSquare, Settings, LogOut, BarChart3, Sun, Moon, Users } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import Overview from './Overview';
 import AbandonedCarts from './AbandonedCarts';
 import ReviewAnalyzer from './ReviewAnalyzer';
 import StoreSettings from './StoreSettings';
+import Customers from './Customers';
 
-type Tab = 'overview' | 'carts' | 'reviews' | 'settings';
+type Tab = 'overview' | 'carts' | 'reviews' | 'settings' | 'customers';
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
@@ -17,6 +18,7 @@ export default function Dashboard() {
   const tabs = [
     { id: 'overview' as Tab, label: 'Overview', icon: BarChart3 },
     { id: 'carts' as Tab, label: 'Abandoned Carts', icon: ShoppingCart },
+    { id: 'customers' as Tab, label: 'Customers', icon: Users },
     { id: 'reviews' as Tab, label: 'Reviews', icon: MessageSquare },
     { id: 'settings' as Tab, label: 'Settings', icon: Settings },
   ];
@@ -63,8 +65,8 @@ export default function Dashboard() {
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
                     className={`flex items-center gap-2 py-4 border-b-2 font-medium transition-colors ${activeTab === tab.id
-                        ? 'border-emerald-600 text-emerald-600'
-                        : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                      ? 'border-emerald-600 text-emerald-600'
+                      : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                       }`}
                   >
                     <Icon className="w-5 h-5" />
@@ -79,6 +81,7 @@ export default function Dashboard() {
         <div>
           {activeTab === 'overview' && <Overview />}
           {activeTab === 'carts' && <AbandonedCarts />}
+          {activeTab === 'customers' && <Customers />}
           {activeTab === 'reviews' && <ReviewAnalyzer />}
           {activeTab === 'settings' && <StoreSettings />}
         </div>

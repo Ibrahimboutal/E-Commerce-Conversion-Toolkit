@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { supabase, Store, AbandonedCart, Review } from '../lib/supabase';
+import { supabase, Store } from '../lib/supabase';
 import { ShoppingCart, TrendingUp, DollarSign, Star, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import TopProducts from './TopProducts';
 
 type Metrics = {
   totalCarts: number;
@@ -273,7 +274,7 @@ export default function Overview() {
                     boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
                   }}
                   itemStyle={{ color: '#10b981' }}
-                  formatter={(value: number) => [`$${value}`, 'Revenue']}
+                  formatter={(value: number | undefined) => [value != null ? `$${value}` : '$0', 'Revenue']}
                 />
                 <Area
                   type="monotone"
@@ -320,6 +321,10 @@ export default function Overview() {
             </div>
           </div>
         </motion.div>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-6">
+        <TopProducts />
       </div>
     </motion.div>
   );
