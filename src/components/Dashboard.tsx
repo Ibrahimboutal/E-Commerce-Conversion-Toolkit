@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ShoppingCart, MessageSquare, Settings, LogOut, BarChart3, Sun, Moon, Users, Sparkles, Wand2 } from 'lucide-react';
+import { ShoppingCart, MessageSquare, Settings, LogOut, BarChart3, Sun, Moon, Users, Sparkles, Wand2, Split } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -9,8 +9,9 @@ import ReviewAnalyzer from './ReviewAnalyzer';
 import StoreSettings from './StoreSettings';
 import Customers from './Customers';
 import AICopywriter from './AICopywriter';
+import ABTestSimulator from './ABTestSimulator';
 
-type Tab = 'overview' | 'carts' | 'reviews' | 'settings' | 'customers' | 'ai-tools';
+type Tab = 'overview' | 'carts' | 'reviews' | 'settings' | 'customers' | 'ai-tools' | 'ab-test';
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
@@ -23,6 +24,7 @@ export default function Dashboard() {
     { id: 'carts' as Tab, label: 'Abandoned Carts', icon: ShoppingCart },
     { id: 'customers' as Tab, label: 'Customers', icon: Users },
     { id: 'ai-tools' as Tab, label: 'AI Copywriter', icon: Wand2 },
+    { id: 'ab-test' as Tab, label: 'A/B Simulator', icon: Split },
     { id: 'reviews' as Tab, label: 'Reviews', icon: MessageSquare },
     { id: 'settings' as Tab, label: 'Settings', icon: Settings },
   ];
@@ -96,6 +98,7 @@ export default function Dashboard() {
           {activeTab === 'carts' && <AbandonedCarts />}
           {activeTab === 'customers' && <Customers />}
           {activeTab === 'ai-tools' && <AICopywriter />}
+          {activeTab === 'ab-test' && <ABTestSimulator />}
           {activeTab === 'reviews' && <ReviewAnalyzer />}
           {activeTab === 'settings' && <StoreSettings />}
         </div>

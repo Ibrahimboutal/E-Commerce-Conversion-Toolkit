@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Users, Mail, ShoppingBag, DollarSign, Calendar, FileDown } from 'lucide-react';
+import { Users, Mail, ShoppingBag, DollarSign, Calendar, FileDown, Crown, Shield, AlertTriangle, Lock } from 'lucide-react';
 import { exportToCSV } from '../utils/export';
+import { useSubscription } from '../contexts/SubscriptionContext';
 
 type Customer = {
   email: string;
@@ -14,6 +15,7 @@ type Customer = {
 export default function Customers() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
+  const { isPro, upgradeToPro } = useSubscription();
 
   useEffect(() => {
     loadCustomers();
@@ -109,48 +111,91 @@ export default function Customers() {
             <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700">
               <tr>
                 <th className="px-6 py-4 font-semibold text-slate-900 dark:text-white">Customer</th>
+                <th className="px-6 py-4 font-semibold text-slate-900 dark:text-white">Segments</th>
                 <th className="px-6 py-4 font-semibold text-slate-900 dark:text-white">Orders</th>
                 <th className="px-6 py-4 font-semibold text-slate-900 dark:text-white">Total Spent</th>
                 <th className="px-6 py-4 font-semibold text-slate-900 dark:text-white">Last Seen</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-              {customers.map((customer) => (
-                <tr key={customer.email} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="bg-slate-100 dark:bg-slate-700 p-2 rounded-full">
-                        <Users className="w-5 h-5 text-slate-500 dark:text-slate-400" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-slate-900 dark:text-white">{customer.name}</p>
-                        <div className="flex items-center gap-1 text-slate-500 dark:text-slate-400 text-xs">
-                          <Mail className="w-3 h-3" />
-                          {customer.email}
+              {customers.map((customer) => {
+                const isVip = customer.totalSpent > 500;
+                const isLoyal = customer.totalOrders > 2;
+                const daysSinceSeen = Math.floor((new Date().getTime() - new Date(customer.lastSeen).getTime()) / (1000 * 3600 * 24));
+                const isRisk = daysSinceSeen > 60;
+
+                return (
+                  <tr key={customer.email} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-slate-100 dark:bg-slate-700 p-2 rounded-full">
+                          <Users className="w-5 h-5 text-slate-500 dark:text-slate-400" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-slate-900 dark:text-white">{customer.name}</p>
+                          <div className="flex items-center gap-1 text-slate-500 dark:text-slate-400 text-xs">
+                            <Mail className="w-3 h-3" />
+                            {customer.email}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <ShoppingBag className="w-4 h-4 text-slate-400" />
-                      <span className="text-slate-700 dark:text-slate-300">{customer.totalOrders}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-1 font-medium text-emerald-600 dark:text-emerald-500">
-                      <DollarSign className="w-4 h-4" />
-                      {customer.totalSpent.toFixed(2)}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-slate-600 dark:text-slate-400">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-slate-400" />
-                      {new Date(customer.lastSeen).toLocaleDateString()}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-6 py-4">
+                      {!isPro ? (
+                        <div className="relative group cursor-pointer" onClick={upgradeToPro}>
+                          <div className="flex gap-1 blur-sm opacity-60 select-none">
+                            <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-xs font-medium">VIP</span>
+                            <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-medium">Loyal</span>
+                          </div>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <Lock className="w-4 h-4 text-slate-500" />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap gap-1">
+                          {isVip && (
+                            <div className="flex items-center gap-1 bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 px-2 py-0.5 rounded text-xs font-medium">
+                              <Crown className="w-3 h-3" /> VIP
+                            </div>
+                          )}
+                          {isLoyal && (
+                            <div className="flex items-center gap-1 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 px-2 py-0.5 rounded text-xs font-medium">
+                              <Shield className="w-3 h-3" /> Loyal
+                            </div>
+                          )}
+                          {isRisk && (
+                            <div className="flex items-center gap-1 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 px-2 py-0.5 rounded text-xs font-medium">
+                              <AlertTriangle className="w-3 h-3" /> Risk
+                            </div>
+                          )}
+                          {!isVip && !isLoyal && !isRisk && (
+                            <span className="text-slate-400 text-xs">-</span>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <ShoppingBag className="w-4 h-4 text-slate-400" />
+                        <span className="text-slate-700 dark:text-slate-300">{customer.totalOrders}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-1 font-medium text-emerald-600 dark:text-emerald-500">
+                        <DollarSign className="w-4 h-4" />
+                        {customer.totalSpent.toFixed(2)}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-slate-600 dark:text-slate-400">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-slate-400" />
+                        {new Date(customer.lastSeen).toLocaleDateString()}
+                      </div>
+                    </td>
+                  </tr>
+
+                );
+              })}
               {customers.length === 0 && (
                 <tr>
                   <td colSpan={4} className="px-6 py-12 text-center text-slate-500">
