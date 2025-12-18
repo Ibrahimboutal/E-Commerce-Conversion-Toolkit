@@ -27,10 +27,11 @@ export default function Overview() {
   const [loading, setLoading] = useState(true);
   const [hasStore, setHasStore] = useState(false);
   const [chartData, setChartData] = useState<any[]>([]);
+  const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d'>('7d');
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [dateRange]);
 
   const loadData = async () => {
     try {
@@ -54,15 +55,21 @@ export default function Overview() {
   };
 
   const loadMetrics = async (storeId: string) => {
+    const days = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90;
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
     const { data: carts } = await supabase
       .from('abandoned_carts')
       .select('*')
-      .eq('store_id', storeId);
+      .eq('store_id', storeId)
+      .gte('created_at', startDate.toISOString());
 
     const { data: reviews } = await supabase
       .from('reviews')
       .select('*')
-      .eq('store_id', storeId);
+      .eq('store_id', storeId)
+      .gte('created_at', startDate.toISOString());
 
     const totalCarts = carts?.length || 0;
     const remindersSent = carts?.filter(c => c.reminder_sent).length || 0;
@@ -83,14 +90,14 @@ export default function Overview() {
       averageRating,
     });
 
-    // Process chart data (last 7 days)
-    const last7Days = [...Array(7)].map((_, i) => {
+    // Process chart data
+    const lastDays = [...Array(days)].map((_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - i);
       return d.toISOString().split('T')[0];
     }).reverse();
 
-    const dailyRevenue = last7Days.map(date => {
+    const dailyRevenue = lastDays.map(date => {
       const dayRevenue = recoveredCarts
         .filter(c => c.created_at.startsWith(date))
         .reduce((sum, c) => sum + Number(c.total_price), 0);
@@ -216,6 +223,23 @@ export default function Overview() {
         <p className="text-slate-600 dark:text-slate-400">
           Store: <span className="font-medium text-slate-900 dark:text-white">{store?.name}</span>
         </p>
+      </div>
+
+      <div className="flex items-center justify-end">
+        <div className="flex items-center bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-1">
+          {(['7d', '30d', '90d'] as const).map((range) => (
+            <button
+              key={range}
+              onClick={() => setDateRange(range)}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${dateRange === range
+                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                }`}
+            >
+              {range === '7d' ? '7 Days' : range === '30d' ? '30 Days' : '90 Days'}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase, AbandonedCart, CartItem } from '../lib/supabase';
-import { Mail, Package, DollarSign, Calendar, CheckCircle, XCircle, ExternalLink } from 'lucide-react';
+import { Mail, Package, DollarSign, Calendar, CheckCircle, XCircle, ExternalLink, FileDown } from 'lucide-react';
+import { exportToCSV } from '../utils/export';
 
 type CartWithItems = AbandonedCart & {
   items?: CartItem[];
@@ -107,15 +108,21 @@ export default function AbandonedCarts() {
         <h2 className="text-2xl font-bold text-slate-900">Abandoned Carts</h2>
 
         <div className="flex gap-2">
+          <button
+            onClick={() => exportToCSV(filteredCarts, 'abandoned-carts')}
+            className="flex items-center gap-2 px-4 py-2 bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors mr-2"
+          >
+            <FileDown className="w-4 h-4" />
+            Export CSV
+          </button>
           {(['all', 'pending', 'sent', 'recovered'] as const).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                filter === f
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${filter === f
                   ? 'bg-emerald-600 text-white'
                   : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300'
-              }`}
+                }`}
             >
               {f.charAt(0).toUpperCase() + f.slice(1)}
             </button>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase, Review } from '../lib/supabase';
 import { Star, TrendingUp, TrendingDown, Minus, Tag } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function ReviewAnalyzer() {
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -80,9 +81,26 @@ export default function ReviewAnalyzer() {
     }
   });
 
+
   const topKeywords = Object.entries(allKeywords)
     .sort(([, a], [, b]) => b - a)
     .slice(0, 10);
+
+  // Calculate sentiment trends (last 30 days)
+  const last30Days = [...Array(30)].map((_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    return d.toISOString().split('T')[0];
+  }).reverse();
+
+  const sentimentTrend = last30Days.map(date => {
+    const daysReviews = reviews.filter(r => r.created_at.startsWith(date));
+    return {
+      date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      positive: daysReviews.filter(r => r.sentiment === 'positive').length,
+      negative: daysReviews.filter(r => r.sentiment === 'negative').length
+    };
+  });
 
   const getSentimentIcon = (sentiment: string | null) => {
     switch (sentiment) {
@@ -128,15 +146,71 @@ export default function ReviewAnalyzer() {
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                filter === f
-                  ? 'bg-emerald-600 text-white'
-                  : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300'
-              }`}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${filter === f
+                ? 'bg-emerald-600 text-white'
+                : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300'
+                }`}
             >
               {f.charAt(0).toUpperCase() + f.slice(1)}
             </button>
           ))}
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg border border-slate-200 p-6">
+        <h3 className="text-lg font-semibold text-slate-900 mb-6">Sentiment Trend (Last 30 Days)</h3>
+        <div className="h-[300px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={sentimentTrend}>
+              <defs>
+                <linearGradient id="colorPositive" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#16a34a" stopOpacity={0.1} />
+                  <stop offset="95%" stopColor="#16a34a" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="colorNegative" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#dc2626" stopOpacity={0.1} />
+                  <stop offset="95%" stopColor="#dc2626" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+              <XAxis
+                dataKey="date"
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: '#64748b' }}
+                minTickGap={30}
+              />
+              <YAxis
+                axisLine={false}
+                tickLine={false}
+                tick={{ fill: '#64748b' }}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: '#fff',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '0.5rem',
+                  boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                }}
+              />
+              <Area
+                type="monotone"
+                dataKey="positive"
+                stackId="1"
+                stroke="#16a34a"
+                fill="url(#colorPositive)"
+                name="Positive"
+              />
+              <Area
+                type="monotone"
+                dataKey="negative"
+                stackId="1"
+                stroke="#dc2626"
+                fill="url(#colorNegative)"
+                name="Negative"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
         </div>
       </div>
 
@@ -221,9 +295,8 @@ export default function ReviewAnalyzer() {
                     {[...Array(5)].map((_, i) => (
                       <Star
                         key={i}
-                        className={`w-4 h-4 ${
-                          i < review.rating ? 'text-yellow-500 fill-yellow-500' : 'text-slate-300'
-                        }`}
+                        className={`w-4 h-4 ${i < review.rating ? 'text-yellow-500 fill-yellow-500' : 'text-slate-300'
+                          }`}
                       />
                     ))}
                   </div>

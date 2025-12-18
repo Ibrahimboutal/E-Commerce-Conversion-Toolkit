@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Users, Mail, ShoppingBag, DollarSign, Calendar } from 'lucide-react';
+import { Users, Mail, ShoppingBag, DollarSign, Calendar, FileDown } from 'lucide-react';
+import { exportToCSV } from '../utils/export';
 
 type Customer = {
   email: string;
@@ -51,18 +52,18 @@ export default function Customers() {
         };
 
         if (cart.recovered) {
-            current.totalOrders += 1;
-            current.totalSpent += Number(cart.total_price);
+          current.totalOrders += 1;
+          current.totalSpent += Number(cart.total_price);
         }
-        
+
         // Update last seen if this cart is newer
         if (new Date(cart.created_at) > new Date(current.lastSeen)) {
-            current.lastSeen = cart.created_at;
+          current.lastSeen = cart.created_at;
         }
 
         // Update name if we have a better one
         if (cart.customer_name && current.name === 'Anonymous') {
-            current.name = cart.customer_name;
+          current.name = cart.customer_name;
         }
 
         customerMap.set(email, current);
@@ -88,8 +89,17 @@ export default function Customers() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Customers</h2>
-        <div className="bg-emerald-100 text-emerald-800 px-4 py-2 rounded-lg font-medium">
+        <div className="flex gap-2">
+          <button
+            onClick={() => exportToCSV(customers, 'customers')}
+            className="flex items-center gap-2 px-4 py-2 bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors"
+          >
+            <FileDown className="w-4 h-4" />
+            Export CSV
+          </button>
+          <div className="bg-emerald-100 text-emerald-800 px-4 py-2 rounded-lg font-medium">
             {customers.length} Total Customers
+          </div>
         </div>
       </div>
 
@@ -115,38 +125,38 @@ export default function Customers() {
                       <div>
                         <p className="font-medium text-slate-900 dark:text-white">{customer.name}</p>
                         <div className="flex items-center gap-1 text-slate-500 dark:text-slate-400 text-xs">
-                            <Mail className="w-3 h-3" />
-                            {customer.email}
+                          <Mail className="w-3 h-3" />
+                          {customer.email}
                         </div>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
-                        <ShoppingBag className="w-4 h-4 text-slate-400" />
-                        <span className="text-slate-700 dark:text-slate-300">{customer.totalOrders}</span>
+                      <ShoppingBag className="w-4 h-4 text-slate-400" />
+                      <span className="text-slate-700 dark:text-slate-300">{customer.totalOrders}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-1 font-medium text-emerald-600 dark:text-emerald-500">
-                        <DollarSign className="w-4 h-4" />
-                        {customer.totalSpent.toFixed(2)}
+                      <DollarSign className="w-4 h-4" />
+                      {customer.totalSpent.toFixed(2)}
                     </div>
                   </td>
                   <td className="px-6 py-4 text-slate-600 dark:text-slate-400">
                     <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-slate-400" />
-                        {new Date(customer.lastSeen).toLocaleDateString()}
+                      <Calendar className="w-4 h-4 text-slate-400" />
+                      {new Date(customer.lastSeen).toLocaleDateString()}
                     </div>
                   </td>
                 </tr>
               ))}
               {customers.length === 0 && (
-                  <tr>
-                      <td colSpan={4} className="px-6 py-12 text-center text-slate-500">
-                          No customer data found yet.
-                      </td>
-                  </tr>
+                <tr>
+                  <td colSpan={4} className="px-6 py-12 text-center text-slate-500">
+                    No customer data found yet.
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
