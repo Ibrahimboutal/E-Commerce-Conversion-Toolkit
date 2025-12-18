@@ -3,6 +3,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { SubscriptionProvider } from './contexts/SubscriptionContext';
 import Auth from './components/Auth';
 import Dashboard from './components/Dashboard';
+import PaymentModal from './components/PaymentModal';
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -28,6 +29,7 @@ function App() {
       <ThemeProvider>
         <SubscriptionProvider>
           <AppContent />
+          <PaymentModal />
         </SubscriptionProvider>
       </ThemeProvider>
     </AuthProvider>

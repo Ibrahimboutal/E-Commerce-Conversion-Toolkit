@@ -15,7 +15,7 @@ type Customer = {
 export default function Customers() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
-  const { isPro, upgradeToPro } = useSubscription();
+  const { isPro, openCheckout } = useSubscription();
 
   useEffect(() => {
     loadCustomers();
@@ -142,7 +142,7 @@ export default function Customers() {
                     </td>
                     <td className="px-6 py-4">
                       {!isPro ? (
-                        <div className="relative group cursor-pointer" onClick={upgradeToPro}>
+                        <div className="relative group cursor-pointer" onClick={openCheckout}>
                           <div className="flex gap-1 blur-sm opacity-60 select-none">
                             <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-xs font-medium">VIP</span>
                             <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs font-medium">Loyal</span>

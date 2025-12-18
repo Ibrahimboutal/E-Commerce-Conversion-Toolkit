@@ -17,7 +17,7 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const { signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const { isPro, upgradeToPro } = useSubscription();
+  const { isPro, openCheckout } = useSubscription();
 
   const tabs = [
     { id: 'overview' as Tab, label: 'Overview', icon: BarChart3 },
@@ -44,7 +44,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-4">
               {!isPro && (
                 <button
-                  onClick={upgradeToPro}
+                  onClick={openCheckout}
                   className="hidden sm:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-full font-medium shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 transition-all hover:scale-105"
                 >
                   <Sparkles className="w-4 h-4" />

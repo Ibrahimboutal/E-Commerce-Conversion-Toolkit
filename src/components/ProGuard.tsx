@@ -14,7 +14,7 @@ export default function ProGuard({
     title = "Pro Feature Locked",
     description = "Upgrade to Pro to access this advanced feature."
 }: ProGuardProps) {
-    const { isPro, upgradeToPro } = useSubscription();
+    const { isPro, openCheckout } = useSubscription();
 
     if (isPro) {
         return <>{children}</>;
@@ -38,7 +38,7 @@ export default function ProGuard({
                     <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">{title}</h3>
                     <p className="text-slate-600 dark:text-slate-400 mb-6 text-sm">{description}</p>
                     <button
-                        onClick={upgradeToPro}
+                        onClick={openCheckout}
                         className="w-full py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg transition-colors shadow-lg shadow-emerald-500/20"
                     >
                         Upgrade to Pro
