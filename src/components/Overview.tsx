@@ -4,6 +4,7 @@ import { ShoppingCart, TrendingUp, DollarSign, Star, AlertCircle } from 'lucide-
 import { motion } from 'framer-motion';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import TopProducts from './TopProducts';
+import RevenueForecast from './RevenueForecast';
 
 type Metrics = {
   totalCarts: number;
@@ -348,6 +349,7 @@ export default function Overview() {
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
+        <RevenueForecast currentRevenue={metrics.recoveredRevenue} />
         <TopProducts />
       </div>
     </motion.div>
