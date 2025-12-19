@@ -20,6 +20,8 @@ export type Store = {
   cart_reminder_delay_hours: number;
   created_at: string;
   updated_at: string;
+  subscription_tier: 'free' | 'pro';
+  subscription_status: 'active' | 'past_due' | 'canceled';
 };
 
 export type AbandonedCart = {

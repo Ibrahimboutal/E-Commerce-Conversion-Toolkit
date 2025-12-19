@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Sparkles, Copy, Check, RefreshCw, Wand2 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 import ProGuard from './ProGuard';
 
 export default function AICopywriter() {
@@ -9,39 +10,27 @@ export default function AICopywriter() {
     const [loading, setLoading] = useState(false);
     const [copied, setCopied] = useState<string | null>(null);
 
-    const generateLines = () => {
+    const generateLines = async () => {
         setLoading(true);
-        // Simulate AI generation delay
-        setTimeout(() => {
-            const templates = {
-                urgent: [
-                    "Don't let your {{topic}} slip away!",
-                    "Last chance: Your {{topic}} is waiting",
-                    "Quick! Your cart is expiring soon",
-                    "Forget something? Your {{topic}} misses you"
-                ],
-                friendly: [
-                    "We saved your {{topic}} for you",
-                    "Still thinking about it? Take another look at your {{topic}}",
-                    "Your cart has good taste!",
-                    "A little reminder about your {{topic}}"
-                ],
-                curious: [
-                    "Was it something we said?",
-                    "Did you see this about your {{topic}}?",
-                    "Question about your cart...",
-                    "You left this behind (and it's sad)"
-                ]
-            };
+        try {
+            const { data, error } = await supabase.functions.invoke('generate-copy', {
+                body: { topic, tone }
+            });
 
-            const selectedTemplates = templates[tone];
-            const results = selectedTemplates.map(t =>
-                t.replace('{{topic}}', topic || 'items')
-            );
-
-            setGenerated(results);
+            if (error) throw error;
+            if (data?.lines) {
+                setGenerated(data.lines);
+            }
+        } catch (error: any) {
+            console.error('Error generating copy:', error);
+            // Fallback for demo if function fails/not deployed
+            setGenerated([
+                `Error: ${error?.message || 'Failed to generate content'}`,
+                "Make sure the Edge Function is deployed",
+            ]);
+        } finally {
             setLoading(false);
-        }, 1500);
+        }
     };
 
     const copyToClipboard = (text: string) => {
@@ -92,8 +81,8 @@ export default function AICopywriter() {
                                             key={t}
                                             onClick={() => setTone(t)}
                                             className={`px-3 py-2 text-sm font-medium rounded-lg border transition-all ${tone === t
-                                                    ? 'bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-900/20 dark:border-purple-800 dark:text-purple-300 ring-2 ring-purple-500 ring-offset-2 dark:ring-offset-slate-800'
-                                                    : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'
+                                                ? 'bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-900/20 dark:border-purple-800 dark:text-purple-300 ring-2 ring-purple-500 ring-offset-2 dark:ring-offset-slate-800'
+                                                : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'
                                                 }`}
                                         >
                                             {t.charAt(0).toUpperCase() + t.slice(1)}
