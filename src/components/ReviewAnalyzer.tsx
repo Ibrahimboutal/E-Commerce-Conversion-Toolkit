@@ -46,6 +46,9 @@ export default function ReviewAnalyzer() {
   };
 
   const analyzeReview = async (reviewId: string) => {
+    const review = reviews.find(r => r.id === reviewId);
+    if (!review?.review_text) return;
+
     const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-review`;
 
     try {
@@ -55,7 +58,10 @@ export default function ReviewAnalyzer() {
           'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ review_id: reviewId }),
+        body: JSON.stringify({
+          review_id: reviewId,
+          review_text: review.review_text
+        }),
       });
 
       if (response.ok) {

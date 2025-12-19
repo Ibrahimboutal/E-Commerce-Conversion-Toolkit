@@ -349,7 +349,7 @@ export default function Overview() {
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
-        <RevenueForecast currentRevenue={metrics.recoveredRevenue} />
+        <RevenueForecast currentRevenue={metrics.recoveredRevenue} history={chartData} />
         <TopProducts />
       </div>
     </motion.div>

@@ -4,14 +4,57 @@ import { motion } from 'framer-motion';
 
 type RevenueForecastProps = {
     currentRevenue: number;
-    growthRate?: number;
+    history?: { date: string; revenue: number }[];
 };
 
-export default function RevenueForecast({ currentRevenue, growthRate = 0.15 }: RevenueForecastProps) {
-    const { isPro, upgradeToPro } = useSubscription();
+export default function RevenueForecast({ currentRevenue, history = [] }: RevenueForecastProps) {
+    const { isPro, openCheckout } = useSubscription();
 
-    const nextMonthForecast = currentRevenue * (1 + growthRate);
-    const threeMonthForecast = currentRevenue * Math.pow(1 + growthRate, 3);
+    const calculateProjection = () => {
+        if (!history || history.length < 2) {
+            // Fallback
+            return {
+                nextMonth: currentRevenue * 1.15,
+                threeMonth: currentRevenue * 1.52,
+                growth: 0.15
+            };
+        }
+
+        const n = history.length;
+        let sumX = 0;
+        let sumY = 0;
+        let sumXY = 0;
+        let sumXX = 0;
+
+        history.forEach((point, i) => {
+            sumX += i;
+            sumY += point.revenue;
+            sumXY += i * point.revenue;
+            sumXX += i * i;
+        });
+
+        const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+        const intercept = (sumY - slope * sumX) / n;
+
+        // Project next 30 days
+        const nextMonthDaily = Array.from({ length: 30 }, (_, i) => {
+            return slope * (n + i) + intercept;
+        });
+
+        const nextMonthTotal = nextMonthDaily.reduce((a, b) => a + Math.max(0, b), 0);
+
+        const currentRate = currentRevenue > 0
+            ? (nextMonthTotal - currentRevenue) / currentRevenue
+            : 0;
+
+        return {
+            nextMonth: nextMonthTotal || currentRevenue * 1.1,
+            threeMonth: nextMonthTotal * 3,
+            growth: currentRate || 0.1
+        };
+    };
+
+    const projection = calculateProjection();
 
     if (!isPro) {
         return (
@@ -25,8 +68,8 @@ export default function RevenueForecast({ currentRevenue, growthRate = 0.15 }: R
                         See how much you could earn next month based on current trends.
                     </p>
                     <button
-                        onClick={upgradeToPro}
-                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg transition-colors"
+                        onClick={openCheckout}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-lg shadow-emerald-500/20"
                     >
                         Upgrade to Pro
                     </button>
@@ -42,10 +85,6 @@ export default function RevenueForecast({ currentRevenue, growthRate = 0.15 }: R
                         <div>
                             <p className="text-sm text-slate-500">Next Month Potential</p>
                             <p className="text-2xl font-bold text-slate-900">$12,450.00</p>
-                        </div>
-                        <div>
-                            <p className="text-sm text-slate-500">3 Month Projection</p>
-                            <p className="text-2xl font-bold text-slate-900">$45,200.00</p>
                         </div>
                     </div>
                 </div>
@@ -75,12 +114,14 @@ export default function RevenueForecast({ currentRevenue, growthRate = 0.15 }: R
                 <div>
                     <div className="flex justify-between items-baseline mb-1">
                         <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Next Month Projection</p>
-                        <span className="text-xs text-emerald-600 font-medium">+{Math.round(growthRate * 100)}% growth</span>
+                        <span className={`text-xs font-medium ${projection.growth >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                            {projection.growth > 0 ? '+' : ''}{Math.round(projection.growth * 100)}% growth
+                        </span>
                     </div>
                     <p className="text-3xl font-bold text-slate-900 dark:text-white">
-                        ${nextMonthForecast.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        ${projection.nextMonth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
-                    <p className="text-xs text-slate-400 mt-1">Based on current recovery rate</p>
+                    <p className="text-xs text-slate-400 mt-1">Based on {history.length} days of data</p>
                 </div>
 
                 <div className="pt-4 border-t border-slate-100 dark:border-slate-700">
@@ -88,7 +129,7 @@ export default function RevenueForecast({ currentRevenue, growthRate = 0.15 }: R
                         <p className="text-sm font-medium text-slate-500 dark:text-slate-400">3 Month Goal</p>
                     </div>
                     <p className="text-2xl font-bold text-slate-700 dark:text-slate-300">
-                        ${threeMonthForecast.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        ${projection.threeMonth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
                 </div>
             </div>
