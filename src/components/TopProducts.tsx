@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Package, TrendingUp, AlertCircle } from 'lucide-react';
+import { Package, TrendingUp } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 type TopProduct = {
