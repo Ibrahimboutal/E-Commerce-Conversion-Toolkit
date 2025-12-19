@@ -4,6 +4,7 @@ import { Star, TrendingUp, TrendingDown, Minus, Tag, Zap, DollarSign, ThumbsUp }
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend } from 'recharts';
 import ProGuard from './ProGuard';
 import { useSubscription } from '../contexts/SubscriptionContext';
+import { toast } from 'react-hot-toast';
 
 
 export default function ReviewAnalyzer() {
@@ -45,11 +46,13 @@ export default function ReviewAnalyzer() {
     }
   };
 
+
   const analyzeReview = async (reviewId: string) => {
     const review = reviews.find(r => r.id === reviewId);
     if (!review?.review_text) return;
 
     const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-review`;
+    const toastId = toast.loading('Analyzing review...');
 
     try {
       const response = await fetch(apiUrl, {
@@ -66,9 +69,13 @@ export default function ReviewAnalyzer() {
 
       if (response.ok) {
         await loadReviews();
+        toast.success('Analysis complete!', { id: toastId });
+      } else {
+        throw new Error('Analysis failed');
       }
     } catch (error) {
       console.error('Error analyzing review:', error);
+      toast.error('Failed to analyze review', { id: toastId });
     }
   };
 

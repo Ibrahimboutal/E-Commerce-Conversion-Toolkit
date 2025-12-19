@@ -2,12 +2,14 @@ import { useState } from 'react';
 import { Split, Trophy, ArrowRight, BarChart } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import ProGuard from './ProGuard';
+import { toast } from 'react-hot-toast';
 
 export default function ABTestSimulator() {
     const [variantA, setVariantA] = useState('');
     const [variantB, setVariantB] = useState('');
     const [simulating, setSimulating] = useState(false);
     const [result, setResult] = useState<{ winner: 'A' | 'B'; confidence: number; lift: number } | null>(null);
+
 
     const runSimulation = async () => {
         if (!variantA || !variantB) return;
@@ -27,9 +29,11 @@ export default function ABTestSimulator() {
                     confidence: data.confidence,
                     lift: data.lift
                 });
+                toast.success('Simulation complete!');
             }
         } catch (error) {
             console.error('Simulation error:', error);
+            toast.error('Simulation failed. Using demo data.');
             // Fallback for demo if backend fails
             const winner = Math.random() > 0.5 ? 'A' : 'B';
             setResult({

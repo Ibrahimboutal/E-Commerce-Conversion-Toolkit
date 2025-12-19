@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Sparkles, Copy, Check, RefreshCw, Wand2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import ProGuard from './ProGuard';
+import { toast } from 'react-hot-toast';
 
 export default function AICopywriter() {
     const [topic, setTopic] = useState('');
@@ -9,6 +10,7 @@ export default function AICopywriter() {
     const [generated, setGenerated] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
     const [copied, setCopied] = useState<string | null>(null);
+
 
     const generateLines = async () => {
         setLoading(true);
@@ -20,9 +22,11 @@ export default function AICopywriter() {
             if (error) throw error;
             if (data?.lines) {
                 setGenerated(data.lines);
+                toast.success('Subject lines generated!');
             }
         } catch (error: any) {
             console.error('Error generating copy:', error);
+            toast.error(error.message || 'Failed to generate content');
             // Fallback for demo if function fails/not deployed
             setGenerated([
                 `Error: ${error?.message || 'Failed to generate content'}`,
@@ -36,6 +40,7 @@ export default function AICopywriter() {
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);
         setCopied(text);
+        toast.success('Copied to clipboard');
         setTimeout(() => setCopied(null), 2000);
     };
 

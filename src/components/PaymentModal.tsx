@@ -3,6 +3,7 @@ import { X, CreditCard, Lock, Smartphone } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { supabase } from '../lib/supabase';
+import { toast } from 'react-hot-toast';
 
 export default function PaymentModal() {
     const { isCheckoutOpen, closeCheckout } = useSubscription();
@@ -15,6 +16,7 @@ export default function PaymentModal() {
     const [cvc, setCvc] = useState('');
 
     if (!isCheckoutOpen) return null;
+
 
     const handlePayment = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -32,9 +34,9 @@ export default function PaymentModal() {
             if (data?.url) {
                 window.location.href = data.url;
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Payment error:', error);
-            // In a real app, show a toast notification here
+            toast.error(error.message || 'Payment initialization failed. Please try again.');
             setProcessing(false);
         }
     };
