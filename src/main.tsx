@@ -18,7 +18,7 @@ if (env.VITE_SENTRY_DSN && isProduction) {
       }),
     ],
     tracesSampleRate: 0.1,
-    replays SessionSampleRate: 0.1,
+    replaysSessionSampleRate: 0.1,
     replaysOnErrorSampleRate: 1.0,
   });
 }
