@@ -45,7 +45,7 @@ A powerful, AI-driven toolkit for e-commerce stores to recover lost revenue, ana
 ### 1. Clone the Repository
 
 ```bash
-git clone <your-repo-url>
+git clone <https://github.com/Ibrahimboutal/E-Commerce-Conversion-Toolkit.git>
 cd project
 ```
 
