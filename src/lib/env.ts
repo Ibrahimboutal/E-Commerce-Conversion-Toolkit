@@ -5,6 +5,10 @@
 interface EnvVars {
     VITE_SUPABASE_URL: string;
     VITE_SUPABASE_ANON_KEY: string;
+    // Optional services
+    VITE_STRIPE_PUBLISHABLE_KEY?: string;
+    VITE_RESEND_API_KEY?: string;
+    VITE_SENTRY_DSN?: string;
 }
 
 class EnvironmentError extends Error {
@@ -24,15 +28,30 @@ function validateEnv(): EnvVars {
         'VITE_SUPABASE_ANON_KEY',
     ] as const;
 
+    const optionalVars = [
+        'VITE_STRIPE_PUBLISHABLE_KEY',
+        'VITE_RESEND_API_KEY',
+        'VITE_SENTRY_DSN',
+    ] as const;
+
     const missing: string[] = [];
     const env: Partial<EnvVars> = {};
 
+    // Validate required variables
     for (const varName of requiredVars) {
         const value = import.meta.env[varName];
 
         if (!value || value === '' || value === 'undefined') {
             missing.push(varName);
         } else {
+            env[varName] = value;
+        }
+    }
+
+    // Add optional variables if present
+    for (const varName of optionalVars) {
+        const value = import.meta.env[varName];
+        if (value && value !== '' && value !== 'undefined') {
             env[varName] = value;
         }
     }

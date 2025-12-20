@@ -1,60 +1,103 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import Stripe from 'https://esm.sh/stripe@14.21.0'
+// deno-lint-ignore-file
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
 
-const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
-    apiVersion: '2023-10-16',
+const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
+    apiVersion: '2024-11-20.acacia',
     httpClient: Stripe.createFetchHttpClient(),
-})
+});
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+};
 
 serve(async (req) => {
+    // Handle CORS preflight requests
     if (req.method === 'OPTIONS') {
-        return new Response('ok', { headers: corsHeaders })
+        return new Response('ok', { headers: corsHeaders });
     }
 
     try {
-        const { return_url, price_id } = await req.json()
+        // Get the authorization header
+        const authHeader = req.headers.get('Authorization');
+        if (!authHeader) {
+            throw new Error('Missing authorization header');
+        }
 
-        // Get the user from the authorization header
-        const authHeader = req.headers.get('Authorization')!
-        const token = authHeader.replace('Bearer ', '')
-        const { data: { user } } = await supabase.auth.getUser(token) // Note: In real edge function accessing auth is slightly different but for this template we assume user exists or we pass userId
+        // Create Supabase client
+        const supabaseClient = createClient(
+            Deno.env.get('SUPABASE_URL') ?? '',
+            Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+            {
+                global: {
+                    headers: { Authorization: authHeader },
+                },
+            }
+        );
 
-        // In Supabase Edge Functions, 'supabase-js' isn't auto-injected like this logic suggests, 
-        // but typically we trust the client to pass the user ID or we verify the JWT. 
-        // For simplicity of this artifact, we will create the session.
+        // Get authenticated user
+        const {
+            data: { user },
+            error: userError,
+        } = await supabaseClient.auth.getUser();
 
+        if (userError || !user) {
+            throw new Error('Unauthorized');
+        }
+
+        // Get user's store
+        const { data: store, error: storeError } = await supabaseClient
+            .from('stores')
+            .select('*')
+            .eq('user_id', user.id)
+            .single();
+
+        if (storeError || !store) {
+            throw new Error('Store not found');
+        }
+
+        // Parse request body
+        const { priceId, successUrl, cancelUrl } = await req.json();
+
+        if (!priceId) {
+            throw new Error('Missing priceId');
+        }
+
+        // Create Stripe checkout session
         const session = await stripe.checkout.sessions.create({
-            payment_method_types: ['card'],
+            customer_email: user.email,
             line_items: [
                 {
-                    price: price_id || 'price_1234567890', // Default or passed price ID
+                    price: priceId,
                     quantity: 1,
                 },
             ],
             mode: 'subscription',
-            success_url: `${return_url}?session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: `${return_url}`,
-        })
+            success_url: successUrl || `${req.headers.get('origin')}/dashboard?subscription=success`,
+            cancel_url: cancelUrl || `${req.headers.get('origin')}/dashboard?subscription=canceled`,
+            metadata: {
+                user_id: user.id,
+                store_id: store.id,
+            },
+        });
 
         return new Response(
             JSON.stringify({ sessionId: session.id, url: session.url }),
             {
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' },
                 status: 200,
-            },
-        )
+            }
+        );
     } catch (error) {
+        console.error('Error creating checkout session:', error);
         return new Response(
             JSON.stringify({ error: error.message }),
             {
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' },
                 status: 400,
-            },
-        )
+            }
+        );
     }
-})
+});
