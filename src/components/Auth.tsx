@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { ShoppingCart, TrendingUp } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -8,7 +10,15 @@ export default function Auth() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn, signUp } = useAuth();
+  const { user, signIn, signUp } = useAuth();
+  const navigate = useNavigate();
+
+  // Redirect to dashboard if already authenticated
+  useEffect(() => {
+    if (user) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,9 +32,20 @@ export default function Auth() {
 
       if (error) {
         setError(error.message);
+        toast.error(error.message);
+      } else {
+        // Success! Redirect based on action
+        if (isLogin) {
+          toast.success('Welcome back!');
+          navigate('/dashboard');
+        } else {
+          toast.success('Account created! Please check your email to verify your account.');
+        }
       }
     } catch (err) {
-      setError('An unexpected error occurred');
+      const errorMessage = 'An unexpected error occurred';
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
