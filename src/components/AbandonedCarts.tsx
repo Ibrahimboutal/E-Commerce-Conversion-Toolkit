@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { supabase, AbandonedCart, CartItem } from '../lib/supabase';
-import { Mail, Package, DollarSign, Calendar, CheckCircle, XCircle, ExternalLink, FileDown } from 'lucide-react';
+import { Mail, DollarSign, Calendar, CheckCircle, XCircle, ExternalLink, FileDown, ShoppingCart } from 'lucide-react';
 import { exportToCSV } from '../utils/export';
+import { SkeletonList } from './ui/Skeleton';
+import EmptyState from './ui/EmptyState';
+import { notify, parseError } from '../lib/errorHandling';
 
 type CartWithItems = AbandonedCart & {
   items?: CartItem[];
@@ -10,7 +13,9 @@ type CartWithItems = AbandonedCart & {
 export default function AbandonedCarts() {
   const [carts, setCarts] = useState<CartWithItems[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'sent' | 'recovered'>('all');
+  const [sendingReminder, setSendingReminder] = useState<string | null>(null);
 
   useEffect(() => {
     loadCarts();
@@ -18,21 +23,26 @@ export default function AbandonedCarts() {
 
   const loadCarts = async () => {
     try {
-      const { data: stores } = await supabase
+      setError(null);
+      const { data: stores, error: storeError } = await supabase
         .from('stores')
         .select('id')
         .maybeSingle();
+
+      if (storeError) throw storeError;
 
       if (!stores) {
         setLoading(false);
         return;
       }
 
-      const { data: cartsData } = await supabase
+      const { data: cartsData, error: cartsError } = await supabase
         .from('abandoned_carts')
         .select('*')
         .eq('store_id', stores.id)
         .order('abandoned_at', { ascending: false });
+
+      if (cartsError) throw cartsError;
 
       if (cartsData) {
         const cartsWithItems = await Promise.all(
@@ -46,14 +56,17 @@ export default function AbandonedCarts() {
         );
         setCarts(cartsWithItems);
       }
-    } catch (error) {
-      console.error('Error loading carts:', error);
+    } catch (err) {
+      const errorMessage = parseError(err);
+      setError(errorMessage);
+      notify.error(err);
     } finally {
       setLoading(false);
     }
   };
 
   const sendReminder = async (cartId: string) => {
+    setSendingReminder(cartId);
     const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-cart-reminder`;
 
     try {
@@ -66,24 +79,32 @@ export default function AbandonedCarts() {
         body: JSON.stringify({ cart_id: cartId }),
       });
 
-      if (response.ok) {
-        await loadCarts();
+      if (!response.ok) {
+        throw new Error('Failed to send reminder');
       }
-    } catch (error) {
-      console.error('Error sending reminder:', error);
+
+      notify.success('Reminder sent successfully!');
+      await loadCarts();
+    } catch (err) {
+      notify.error(err);
+    } finally {
+      setSendingReminder(null);
     }
   };
 
   const markAsRecovered = async (cartId: string) => {
     try {
-      await supabase
+      const { error } = await supabase
         .from('abandoned_carts')
         .update({ recovered: true, recovered_at: new Date().toISOString() })
         .eq('id', cartId);
 
+      if (error) throw error;
+
+      notify.success('Cart marked as recovered!');
       await loadCarts();
-    } catch (error) {
-      console.error('Error marking cart as recovered:', error);
+    } catch (err) {
+      notify.error(err);
     }
   };
 
@@ -96,9 +117,30 @@ export default function AbandonedCarts() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-slate-500">Loading carts...</div>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="h-8 w-48 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
+          <div className="flex gap-2">
+            <div className="h-10 w-32 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
+            <div className="h-10 w-20 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
+          </div>
+        </div>
+        <SkeletonList items={5} />
       </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <EmptyState
+        icon={XCircle}
+        title="Failed to load abandoned carts"
+        description={error}
+        action={{
+          label: 'Try again',
+          onClick: loadCarts,
+        }}
+      />
     );
   }
 
@@ -120,8 +162,8 @@ export default function AbandonedCarts() {
               key={f}
               onClick={() => setFilter(f)}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${filter === f
-                  ? 'bg-emerald-600 text-white'
-                  : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300'
+                ? 'bg-emerald-600 text-white'
+                : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300'
                 }`}
             >
               {f.charAt(0).toUpperCase() + f.slice(1)}
@@ -131,13 +173,23 @@ export default function AbandonedCarts() {
       </div>
 
       {filteredCarts.length === 0 ? (
-        <div className="bg-white rounded-lg border border-slate-200 p-12 text-center">
-          <Package className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-          <p className="text-slate-600">No abandoned carts found</p>
-          <p className="text-sm text-slate-500 mt-2">
-            Carts will appear here when customers leave items without completing checkout
-          </p>
-        </div>
+        <EmptyState
+          icon={ShoppingCart}
+          title="No abandoned carts found"
+          description={
+            filter === 'all'
+              ? 'Carts will appear here when customers leave items without completing checkout'
+              : `No ${filter} carts found. Try changing the filter.`
+          }
+          action={
+            filter !== 'all'
+              ? {
+                label: 'Show all carts',
+                onClick: () => setFilter('all'),
+              }
+              : undefined
+          }
+        />
       ) : (
         <div className="space-y-4">
           {filteredCarts.map((cart) => (
@@ -224,10 +276,11 @@ export default function AbandonedCarts() {
                   {!cart.recovered && !cart.reminder_sent && (
                     <button
                       onClick={() => sendReminder(cart.id)}
-                      className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors"
+                      disabled={sendingReminder === cart.id}
+                      className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <Mail className="w-4 h-4" />
-                      Send Reminder
+                      <Mail className={`w-4 h-4 ${sendingReminder === cart.id ? 'animate-pulse' : ''}`} />
+                      {sendingReminder === cart.id ? 'Sending...' : 'Send Reminder'}
                     </button>
                   )}
                   {!cart.recovered && cart.reminder_sent && (
