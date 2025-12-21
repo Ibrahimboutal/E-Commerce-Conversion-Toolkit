@@ -3,7 +3,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.57.4';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Client-Info, Apikey',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Client-Info, Apikey, X-Webhook-Secret',
 };
 
 Deno.serve(async (req: Request) => {
@@ -19,10 +19,40 @@ Deno.serve(async (req: Request) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Get the webhook secret from the header
+    const receivedSecret = req.headers.get('X-Webhook-Secret');
+
     const payload = await req.json();
     const { event_type, store_id, data } = payload;
 
-    console.log('Received webhook:', { event_type, store_id });
+    if (!store_id) {
+      throw new Error('store_id is required');
+    }
+
+    // Verify the secret against the store record
+    const { data: store, error: storeError } = await supabase
+      .from('stores')
+      .select('webhook_secret')
+      .eq('id', store_id)
+      .single();
+
+    if (storeError || !store) {
+      console.error(`Store not found or unauthorized: ${store_id}`);
+      return new Response(JSON.stringify({ error: 'Unauthorized or store not found' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (store.webhook_secret !== receivedSecret) {
+      console.error(`Invalid secret for store: ${store_id}`);
+      return new Response(JSON.stringify({ error: 'Invalid webhook secret' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log('Received verified webhook:', { event_type, store_id });
 
     if (event_type === 'cart.abandoned') {
       const { customer_email, customer_name, cart_token, cart_url, total_price, currency, items } = data;
@@ -111,7 +141,7 @@ Deno.serve(async (req: Request) => {
         },
       }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error('Webhook error:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
