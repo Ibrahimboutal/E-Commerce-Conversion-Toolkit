@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { supabase, Store } from '../lib/supabase';
 import { Save, Copy, Check, AlertCircle } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 export default function StoreSettings() {
   const [store, setStore] = useState<Store | null>(null);
+  const [templates, setTemplates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -12,30 +14,42 @@ export default function StoreSettings() {
     platform: 'custom',
     cart_reminder_enabled: true,
     cart_reminder_delay_hours: 1,
+    cart_reminder_template_id: '',
   });
 
   useEffect(() => {
-    loadStore();
+    loadData();
   }, []);
 
-  const loadStore = async () => {
+  const loadData = async () => {
     try {
-      const { data } = await supabase
+      const { data: storeData } = await supabase
         .from('stores')
         .select('*')
         .maybeSingle();
 
-      if (data) {
-        setStore(data);
+      if (storeData) {
+        setStore(storeData);
         setFormData({
-          name: data.name,
-          platform: data.platform,
-          cart_reminder_enabled: data.cart_reminder_enabled,
-          cart_reminder_delay_hours: data.cart_reminder_delay_hours,
+          name: storeData.name,
+          platform: storeData.platform,
+          cart_reminder_enabled: storeData.cart_reminder_enabled,
+          cart_reminder_delay_hours: storeData.cart_reminder_delay_hours,
+          cart_reminder_template_id: storeData.cart_reminder_template_id || '',
         });
       }
+
+      // Fetch templates
+      const { data: templateData } = await supabase
+        .from('email_templates')
+        .select('id, name')
+        .eq('template_type', 'cart_reminder');
+
+      if (templateData) {
+        setTemplates(templateData);
+      }
     } catch (error) {
-      console.error('Error loading store:', error);
+      console.error('Error loading data:', error);
     } finally {
       setLoading(false);
     }
@@ -46,13 +60,16 @@ export default function StoreSettings() {
     setSaving(true);
 
     try {
+      const updateData = {
+        ...formData,
+        cart_reminder_template_id: formData.cart_reminder_template_id || null,
+        updated_at: new Date().toISOString(),
+      };
+
       if (store) {
         await supabase
           .from('stores')
-          .update({
-            ...formData,
-            updated_at: new Date().toISOString(),
-          })
+          .update(updateData)
           .eq('id', store.id);
       } else {
         const { data: { user } } = await supabase.auth.getUser();
@@ -60,15 +77,17 @@ export default function StoreSettings() {
           await supabase
             .from('stores')
             .insert({
-              ...formData,
+              ...updateData,
               user_id: user.id,
             });
         }
       }
 
-      await loadStore();
+      await loadData();
+      toast.success('Settings saved successfully');
     } catch (error) {
       console.error('Error saving store:', error);
+      toast.error('Failed to save settings');
     } finally {
       setSaving(false);
     }
@@ -160,8 +179,25 @@ export default function StoreSettings() {
               onChange={(e) => setFormData({ ...formData, cart_reminder_delay_hours: parseInt(e.target.value) })}
               className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
             />
+          </div>
+
+          <div>
+            <label htmlFor="template" className="block text-sm font-medium text-slate-700 mb-1">
+              Email Template
+            </label>
+            <select
+              id="template"
+              value={formData.cart_reminder_template_id}
+              onChange={(e) => setFormData({ ...formData, cart_reminder_template_id: e.target.value })}
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+            >
+              <option value="">Default Premium Template</option>
+              {templates.map(t => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
             <p className="text-xs text-slate-500 mt-1">
-              Recommended: 1-24 hours for best recovery rates
+              Select an AI-generated template or use our high-converting base design.
             </p>
           </div>
         </div>
@@ -223,7 +259,49 @@ export default function StoreSettings() {
           </div>
 
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-            <h4 className="font-medium text-slate-900 mb-2">Integration Instructions</h4>
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="font-medium text-slate-900">Integration Instructions</h4>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const testPayload = {
+                      event_type: 'cart.abandoned',
+                      store_id: store.id,
+                      data: {
+                        customer_email: 'test@example.com',
+                        customer_name: 'Test Customer',
+                        cart_token: 'test_token_' + Date.now(),
+                        total_price: 99.99,
+                        currency: 'USD',
+                        items: [{ product_id: '1', product_name: 'Test Product', quantity: 1, price: 99.99 }]
+                      }
+                    };
+
+                    const response = await fetch(webhookUrl, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'X-Webhook-Secret': store.webhook_secret
+                      },
+                      body: JSON.stringify(testPayload)
+                    });
+
+                    if (response.ok) {
+                      toast.success('Connection successful! Test data received.');
+                    } else {
+                      const err = await response.json();
+                      toast.error(`Connection failed: ${err.error || 'Unknown error'}`);
+                    }
+                  } catch (error) {
+                    toast.error('Failed to connect to webhook handler');
+                  }
+                }}
+                className="flex items-center gap-2 px-4 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors text-sm font-semibold"
+              >
+                Test Connection
+              </button>
+            </div>
             <ol className="text-sm text-slate-700 space-y-2 list-decimal list-inside">
               <li>Copy the webhook URL above</li>
               <li>In your e-commerce platform, navigate to webhook settings</li>

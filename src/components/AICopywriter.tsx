@@ -1,15 +1,18 @@
 import { useState } from 'react';
-import { Sparkles, Copy, Check, RefreshCw, Wand2 } from 'lucide-react';
+import { Sparkles, Copy, Check, RefreshCw, Wand2, Save } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import ProGuard from './ProGuard';
 import { toast } from 'react-hot-toast';
+import { useSubscription } from '../contexts/SubscriptionContext';
 
 export default function AICopywriter() {
+    const { store } = useSubscription();
     const [topic, setTopic] = useState('');
     const [tone, setTone] = useState<'urgent' | 'friendly' | 'curious'>('friendly');
     const [generated, setGenerated] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
     const [copied, setCopied] = useState<string | null>(null);
+    const [saving, setSaving] = useState<string | null>(null);
 
 
     const generateLines = async () => {
@@ -42,6 +45,30 @@ export default function AICopywriter() {
         setCopied(text);
         toast.success('Copied to clipboard');
         setTimeout(() => setCopied(null), 2000);
+    };
+
+    const saveAsTemplate = async (subject: string) => {
+        if (!store) return;
+        setSaving(subject);
+        try {
+            const { error } = await supabase
+                .from('email_templates')
+                .insert({
+                    store_id: store.id,
+                    name: `AI: ${topic || 'Untitled'}`,
+                    subject: subject,
+                    body: "Automatically generated body placeholder. Customize this in settings.",
+                    template_type: 'cart_reminder'
+                });
+
+            if (error) throw error;
+            toast.success('Saved to templates!');
+        } catch (error: any) {
+            console.error('Error saving template:', error);
+            toast.error('Failed to save template');
+        } finally {
+            setSaving(null);
+        }
     };
 
     return (
@@ -133,13 +160,23 @@ export default function AICopywriter() {
                                             className="group flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-purple-300 dark:hover:border-purple-700 transition-colors"
                                         >
                                             <p className="text-slate-800 dark:text-slate-200 font-medium">{line}</p>
-                                            <button
-                                                onClick={() => copyToClipboard(line)}
-                                                className="p-2 text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
-                                                title="Copy to clipboard"
-                                            >
-                                                {copied === line ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                                            </button>
+                                            <div className="flex gap-1">
+                                                <button
+                                                    onClick={() => saveAsTemplate(line)}
+                                                    disabled={saving === line}
+                                                    className="p-2 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors disabled:opacity-50"
+                                                    title="Save as template"
+                                                >
+                                                    {saving === line ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                                </button>
+                                                <button
+                                                    onClick={() => copyToClipboard(line)}
+                                                    className="p-2 text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+                                                    title="Copy to clipboard"
+                                                >
+                                                    {copied === line ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                                                </button>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -151,3 +188,4 @@ export default function AICopywriter() {
         </ProGuard>
     );
 }
+

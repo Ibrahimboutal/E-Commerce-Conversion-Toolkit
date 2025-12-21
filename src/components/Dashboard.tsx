@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ShoppingCart, MessageSquare, Settings, LogOut, BarChart3, Sun, Moon, Users, Sparkles, Wand2, Split, Menu } from 'lucide-react';
+import { ShoppingCart, MessageSquare, Settings, LogOut, BarChart3, Sun, Moon, Users, Sparkles, Wand2, Split, Menu, Mail } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSubscription } from '../contexts/SubscriptionContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -10,9 +10,10 @@ import StoreSettings from './StoreSettings';
 import Customers from './Customers';
 import AICopywriter from './AICopywriter';
 import ABTestSimulator from './ABTestSimulator';
+import EmailLogs from './EmailLogs';
 import MobileNav from './ui/MobileNav';
 
-type Tab = 'overview' | 'carts' | 'reviews' | 'settings' | 'customers' | 'ai-tools' | 'ab-test';
+type Tab = 'overview' | 'carts' | 'reviews' | 'settings' | 'customers' | 'ai-tools' | 'ab-test' | 'email-logs';
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
@@ -30,6 +31,7 @@ export default function Dashboard() {
     { id: 'overview' as Tab, label: 'Overview', icon: BarChart3 },
     { id: 'carts' as Tab, label: 'Abandoned Carts', icon: ShoppingCart },
     { id: 'customers' as Tab, label: 'Customers', icon: Users },
+    { id: 'email-logs' as Tab, label: 'Email Logs', icon: Mail },
     { id: 'ai-tools' as Tab, label: 'AI Copywriter', icon: Wand2 },
     { id: 'ab-test' as Tab, label: 'A/B Simulator', icon: Split },
     { id: 'reviews' as Tab, label: 'Reviews', icon: MessageSquare },
@@ -97,8 +99,8 @@ export default function Dashboard() {
                     key={tab.id}
                     onClick={() => handleTabChange(tab.id)}
                     className={`flex items-center gap-2 py-4 border-b-2 font-medium transition-colors whitespace-nowrap ${activeTab === tab.id
-                        ? 'border-emerald-600 text-emerald-600'
-                        : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                      ? 'border-emerald-600 text-emerald-600'
+                      : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
                       }`}
                   >
                     <Icon className="w-5 h-5" />
@@ -120,8 +122,8 @@ export default function Dashboard() {
                   key={tab.id}
                   onClick={() => handleTabChange(tab.id)}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-colors ${activeTab === tab.id
-                      ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400'
-                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                    ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400'
+                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
                     }`}
                 >
                   <Icon className="w-5 h-5" />
@@ -159,6 +161,7 @@ export default function Dashboard() {
           {activeTab === 'overview' && <Overview />}
           {activeTab === 'carts' && <AbandonedCarts />}
           {activeTab === 'customers' && <Customers />}
+          {activeTab === 'email-logs' && <EmailLogs />}
           {activeTab === 'ai-tools' && <AICopywriter />}
           {activeTab === 'ab-test' && <ABTestSimulator />}
           {activeTab === 'reviews' && <ReviewAnalyzer />}
