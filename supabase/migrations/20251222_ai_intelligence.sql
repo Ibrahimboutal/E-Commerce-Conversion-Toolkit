@@ -1,10 +1,13 @@
--- Enable pgvector extension
-CREATE EXTENSION IF NOT EXISTS vector;
-
--- Create customers table
-CREATE TABLE IF NOT EXISTS customers (
+-- 1️⃣ Stores table
+CREATE TABLE IF NOT EXISTS public.stores (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL
+);
+
+-- 2️⃣ Customers table
+CREATE TABLE IF NOT EXISTS public.customers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    store_id UUID NOT NULL REFERENCES public.stores(id) ON DELETE CASCADE,
     email TEXT NOT NULL,
     name TEXT,
     clv_score FLOAT DEFAULT 0,
@@ -14,20 +17,19 @@ CREATE TABLE IF NOT EXISTS customers (
     UNIQUE(store_id, email)
 );
 
--- Enable RLS for customers
-ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.customers ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Stores can manage their own customers"
-    ON customers
-    FOR ALL
-    TO authenticated
-    USING (store_id IN (SELECT id FROM stores WHERE user_id = auth.uid()));
+ON public.customers
+FOR ALL
+TO authenticated
+USING (store_id IN (SELECT id FROM public.stores WHERE user_id = auth.uid()));
 
--- Create products table (for embeddings and recommendations)
-CREATE TABLE IF NOT EXISTS products (
+-- 3️⃣ Products table
+CREATE TABLE IF NOT EXISTS public.products (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
-    external_id TEXT, -- ID from Shopify/WooCommerce
+    store_id UUID NOT NULL REFERENCES public.stores(id) ON DELETE CASCADE,
+    external_id TEXT,
     name TEXT NOT NULL,
     description TEXT,
     image_url TEXT,
@@ -37,28 +39,34 @@ CREATE TABLE IF NOT EXISTS products (
     UNIQUE(store_id, external_id)
 );
 
--- Enable RLS for products
-ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Stores can manage their own products"
-    ON products
-    FOR ALL
-    TO authenticated
-    USING (store_id IN (SELECT id FROM stores WHERE user_id = auth.uid()));
+ON public.products
+FOR ALL
+TO authenticated
+USING (store_id IN (SELECT id FROM public.stores WHERE user_id = auth.uid()));
 
--- Create product_embeddings table
-CREATE TABLE IF NOT EXISTS product_embeddings (
+-- 4️⃣ Product embeddings table
+CREATE TABLE IF NOT EXISTS public.product_embeddings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-    embedding vector(1536), -- Assuming OpenAI 1536-dim embeddings
+    product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+    embedding extensions.vector(1536),
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- Enable RLS for product_embeddings
-ALTER TABLE product_embeddings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.product_embeddings ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Stores can manage their own embeddings"
-    ON product_embeddings
-    FOR ALL
-    TO authenticated
-    USING (product_id IN (SELECT id FROM products p JOIN stores s ON p.store_id = s.id WHERE s.user_id = auth.uid()));
+ON public.product_embeddings
+FOR ALL
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1
+    FROM public.products p
+    JOIN public.stores s ON p.store_id = s.id
+    WHERE p.id = product_embeddings.product_id
+      AND s.user_id = auth.uid()
+  )
+);
