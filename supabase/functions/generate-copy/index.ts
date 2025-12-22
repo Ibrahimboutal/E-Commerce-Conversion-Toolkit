@@ -11,14 +11,18 @@ serve(async (req) => {
     }
 
     try {
-        const { topic, tone } = await req.json()
+        const { topic, tone, recommendations } = await req.json()
         const apiKey = Deno.env.get('OPENAI_API_KEY')
 
         if (!apiKey) {
             throw new Error('Missing OpenAI API Key')
         }
 
-        const prompt = `Generate 4 catchy email subject lines for an abandoned cart containing: "${topic}". Tone: ${tone}. Return only the subject lines, one per line.`
+        const recommendationsContext = recommendations && recommendations.length > 0
+            ? ` Also consider mentioning these related items: ${recommendations.join(', ')}.`
+            : ''
+
+        const prompt = `Generate 4 catchy email subject lines for an abandoned cart containing: "${topic}". Tone: ${tone}.${recommendationsContext} Return only the subject lines, one per line.`
 
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',

@@ -9,11 +9,14 @@ import ReviewAnalyzer from './ReviewAnalyzer';
 import StoreSettings from './StoreSettings';
 import Customers from './Customers';
 import AICopywriter from './AICopywriter';
-import ABTestSimulator from './ABTestSimulator';
+import ABTestManager from './ABTestManager';
 import EmailLogs from './EmailLogs';
+import WidgetBuilder from './WidgetBuilder';
+import EmailBuilder from './EmailBuilder';
+import { Layout } from 'lucide-react';
 import MobileNav from './ui/MobileNav';
 
-type Tab = 'overview' | 'carts' | 'reviews' | 'settings' | 'customers' | 'ai-tools' | 'ab-test' | 'email-logs';
+type Tab = 'overview' | 'carts' | 'reviews' | 'settings' | 'customers' | 'ai-tools' | 'ab-test' | 'email-logs' | 'widgets' | 'email-designer';
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
@@ -34,7 +37,9 @@ export default function Dashboard() {
     { id: 'email-logs' as Tab, label: 'Email Logs', icon: Mail },
     { id: 'ai-tools' as Tab, label: 'AI Copywriter', icon: Wand2 },
     { id: 'ab-test' as Tab, label: 'A/B Simulator', icon: Split },
+    { id: 'email-designer' as Tab, label: 'Email Designer', icon: Mail },
     { id: 'reviews' as Tab, label: 'Reviews', icon: MessageSquare },
+    { id: 'widgets' as Tab, label: 'On-Site Tools', icon: Layout },
     { id: 'settings' as Tab, label: 'Settings', icon: Settings },
   ];
 
@@ -163,8 +168,10 @@ export default function Dashboard() {
           {activeTab === 'customers' && <Customers />}
           {activeTab === 'email-logs' && <EmailLogs />}
           {activeTab === 'ai-tools' && <AICopywriter />}
-          {activeTab === 'ab-test' && <ABTestSimulator />}
+          {activeTab === 'ab-test' && <ABTestManager />}
           {activeTab === 'reviews' && <ReviewAnalyzer />}
+          {activeTab === 'widgets' && <WidgetBuilder />}
+          {activeTab === 'email-designer' && <EmailBuilder />}
           {activeTab === 'settings' && <StoreSettings />}
         </div>
       </div>

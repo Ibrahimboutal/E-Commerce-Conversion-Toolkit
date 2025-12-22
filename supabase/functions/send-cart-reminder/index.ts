@@ -44,7 +44,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: cart, error: cartError } = await supabase
       .from('abandoned_carts')
-      .select('*, cart_items(*), stores(user_id, name, cart_reminder_template_id)')
+      .select('*, cart_items(*), stores(user_id, name, cart_reminder_template_id, twilio_account_sid, twilio_auth_token, twilio_from_number, sms_reminder_enabled)')
       .eq('id', cart_id)
       .single();
 
@@ -60,9 +60,66 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    let smsSent = false;
+    // Try sending SMS if phone number exists and SMS is enabled
+    if (cart.customer_phone && cart.stores.sms_reminder_enabled && cart.stores.twilio_account_sid && cart.stores.twilio_auth_token) {
+      try {
+        const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${cart.stores.twilio_account_sid}/Messages.json`;
+        const auth = btoa(`${cart.stores.twilio_account_sid}:${cart.stores.twilio_auth_token}`);
+
+        const smsBody = `Hi ${cart.customer_name || 'there'}! You left items in your cart at ${cart.stores.name}. Complete your purchase here: ${cart.cart_url || '#'}`;
+
+        const res = await fetch(twilioUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Authorization': `Basic ${auth}`,
+          },
+          body: new URLSearchParams({
+            To: cart.customer_phone,
+            From: cart.stores.twilio_from_number,
+            Body: smsBody,
+          }).toString(),
+        });
+
+        if (res.ok) {
+          smsSent = true;
+          console.log(`SMS sent to ${cart.customer_phone}`);
+        } else {
+          const errorData = await res.json();
+          console.error('Twilio error:', errorData);
+        }
+      } catch (err) {
+        console.error('Failed to send SMS:', err);
+      }
+    }
+
     // Fetch custom template if exists
     let emailSubject = `Don't forget your items! | ${cart.stores.name}`;
     let emailHtml = '';
+
+    // Check for active A/B tests
+    const { data: activeTest } = await supabase
+      .from('ab_tests')
+      .select('*')
+      .eq('store_id', cart.store_id)
+      .eq('status', 'active')
+      .maybeSingle();
+
+    let selectedVariant = null;
+    if (activeTest) {
+      selectedVariant = Math.random() > 0.5 ? 'A' : 'B';
+      emailSubject = selectedVariant === 'A' ? activeTest.variant_a_subject : activeTest.variant_b_subject;
+
+      // Log the A/B test sent event
+      await supabase
+        .from('ab_test_events')
+        .insert({
+          test_id: activeTest.id,
+          variant: selectedVariant,
+          event_type: 'sent'
+        });
+    }
 
     if (cart.stores.cart_reminder_template_id) {
       const { data: template } = await supabase
@@ -133,31 +190,33 @@ Deno.serve(async (req: Request) => {
     });
 
 
-    // Send email via Resend
-    if (!RESEND_API_KEY) {
-      console.warn('RESEND_API_KEY not set, logging email instead');
-    } else {
-      const res = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${RESEND_API_KEY}`,
-        },
-        body: JSON.stringify({
-          from: `${cart.stores.name} <onboarding@resend.dev>`,
-          to: [cart.customer_email],
-          subject: emailSubject,
-          html: emailHtml,
-        }),
-      });
+    // Send email via Resend if SMS was not sent
+    if (!smsSent) {
+      if (!RESEND_API_KEY) {
+        console.warn('RESEND_API_KEY not set, logging email instead');
+      } else {
+        const res = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${RESEND_API_KEY}`,
+          },
+          body: JSON.stringify({
+            from: `${cart.stores.name} <onboarding@resend.dev>`,
+            to: [cart.customer_email],
+            subject: emailSubject,
+            html: emailHtml,
+          }),
+        });
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(`Resend error: ${errorData.message || res.statusText}`);
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(`Resend error: ${errorData.message || res.statusText}`);
+        }
       }
     }
 
-    // Update cart status
+    // Update cart status regardless of channel
     await supabase
       .from('abandoned_carts')
       .update({
@@ -166,18 +225,21 @@ Deno.serve(async (req: Request) => {
       })
       .eq('id', cart_id);
 
-    // Log the email
+    // Log the event
     await supabase
       .from('email_logs')
       .insert({
         cart_id: cart_id,
         email: cart.customer_email,
-        subject: emailSubject,
+        subject: smsSent ? '[SMS] ' + emailSubject : emailSubject,
         sent_at: new Date().toISOString(),
       });
 
     return new Response(
-      JSON.stringify({ success: true, message: 'Cart reminder sent' }),
+      JSON.stringify({
+        success: true,
+        message: smsSent ? 'SMS reminder sent' : 'Email reminder sent'
+      }),
       {
         headers: {
           ...corsHeaders,

@@ -10,6 +10,8 @@ type Customer = {
   totalOrders: number;
   totalSpent: number;
   lastSeen: string;
+  clv_score?: number;
+  predicted_segment?: string;
 };
 
 export default function Customers() {
@@ -71,7 +73,25 @@ export default function Customers() {
         customerMap.set(email, current);
       });
 
-      setCustomers(Array.from(customerMap.values()).sort((a, b) => b.totalSpent - a.totalSpent));
+      // Fetch AI metadata
+      const { data: aiMetadata } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('store_id', stores.id);
+
+      const aiMap = new Map<string, any>();
+      aiMetadata?.forEach(m => aiMap.set(m.email, m));
+
+      const mergedCustomers = Array.from(customerMap.values()).map(c => {
+        const meta = aiMap.get(c.email);
+        return {
+          ...c,
+          clv_score: meta?.clv_score || 0,
+          predicted_segment: meta?.predicted_segment || 'Regular'
+        };
+      });
+
+      setCustomers(mergedCustomers.sort((a, b) => (b.clv_score || 0) - (a.clv_score || 0)));
     } catch (error) {
       console.error('Error loading customers:', error);
     } finally {
@@ -119,10 +139,10 @@ export default function Customers() {
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
               {customers.map((customer) => {
-                const isVip = customer.totalSpent > 500;
-                const isLoyal = customer.totalOrders > 2;
+                const segment = customer.predicted_segment || 'Regular';
+                const isVip = segment === 'VIP';
+                const isAtRisk = segment === 'At Risk';
                 const daysSinceSeen = Math.floor((new Date().getTime() - new Date(customer.lastSeen).getTime()) / (1000 * 3600 * 24));
-                const isRisk = daysSinceSeen > 60;
 
                 return (
                   <tr key={customer.email} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
@@ -153,17 +173,17 @@ export default function Customers() {
                         </div>
                       ) : (
                         <div className="flex flex-wrap gap-1">
-                          {isVip && (
+                          {segment === 'VIP' && (
                             <div className="flex items-center gap-1 bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 px-2 py-0.5 rounded text-xs font-medium">
                               <Crown className="w-3 h-3" /> VIP
                             </div>
                           )}
-                          {isLoyal && (
+                          {segment === 'Regular' && (
                             <div className="flex items-center gap-1 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 px-2 py-0.5 rounded text-xs font-medium">
-                              <Shield className="w-3 h-3" /> Loyal
+                              <Shield className="w-3 h-3" /> Regular
                             </div>
                           )}
-                          {isRisk && (
+                          {segment === 'At Risk' && (
                             <div className="flex items-center gap-1 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 px-2 py-0.5 rounded text-xs font-medium">
                               <AlertTriangle className="w-3 h-3" /> Risk
                             </div>

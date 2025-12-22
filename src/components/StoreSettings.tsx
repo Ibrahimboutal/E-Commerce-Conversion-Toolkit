@@ -15,6 +15,10 @@ export default function StoreSettings() {
     cart_reminder_enabled: true,
     cart_reminder_delay_hours: 1,
     cart_reminder_template_id: '',
+    twilio_account_sid: '',
+    twilio_auth_token: '',
+    twilio_from_number: '',
+    sms_reminder_enabled: false,
   });
 
   useEffect(() => {
@@ -36,6 +40,10 @@ export default function StoreSettings() {
           cart_reminder_enabled: storeData.cart_reminder_enabled,
           cart_reminder_delay_hours: storeData.cart_reminder_delay_hours,
           cart_reminder_template_id: storeData.cart_reminder_template_id || '',
+          twilio_account_sid: storeData.twilio_account_sid || '',
+          twilio_auth_token: storeData.twilio_auth_token || '',
+          twilio_from_number: storeData.twilio_from_number || '',
+          sms_reminder_enabled: storeData.sms_reminder_enabled || false,
         });
       }
 
@@ -202,6 +210,74 @@ export default function StoreSettings() {
           </div>
         </div>
 
+        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6 space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg">
+              <MessageSquare className="w-6 h-6 text-blue-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">SMS Recovery (Twilio)</h3>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <input
+              id="sms_enabled"
+              type="checkbox"
+              checked={formData.sms_reminder_enabled}
+              onChange={(e) => setFormData({ ...formData, sms_reminder_enabled: e.target.checked })}
+              className="w-4 h-4 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500"
+            />
+            <label htmlFor="sms_enabled" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+              Enable SMS reminders (Requires Twilio)
+            </label>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="twilio_sid" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                Twilio Account SID
+              </label>
+              <input
+                id="twilio_sid"
+                type="text"
+                value={formData.twilio_account_sid}
+                onChange={(e) => setFormData({ ...formData, twilio_account_sid: e.target.value })}
+                className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white"
+                placeholder="ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+              />
+            </div>
+            <div>
+              <label htmlFor="twilio_token" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                Twilio Auth Token
+              </label>
+              <input
+                id="twilio_token"
+                type="password"
+                value={formData.twilio_auth_token}
+                onChange={(e) => setFormData({ ...formData, twilio_auth_token: e.target.value })}
+                className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white"
+                placeholder="••••••••••••••••••••••••••••••••"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="twilio_from" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+              Twilio From Number
+            </label>
+            <input
+              id="twilio_from"
+              type="text"
+              value={formData.twilio_from_number}
+              onChange={(e) => setFormData({ ...formData, twilio_from_number: e.target.value })}
+              className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white"
+              placeholder="+1234567890"
+            />
+            <p className="text-xs text-slate-500 mt-1">
+              Your Twilio phone number in E.164 format.
+            </p>
+          </div>
+        </div>
+
         <button
           type="submit"
           disabled={saving}
@@ -310,6 +386,32 @@ export default function StoreSettings() {
               <li>Enable the webhook and test the connection</li>
             </ol>
           </div>
+        </div>
+      )}
+
+      {store && (
+        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6 space-y-4">
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">On-Site Conversion Script</h3>
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            Paste this code into the <code>&lt;head&gt;</code> of your website to enable On-Site Widgets.
+          </p>
+
+          <div className="bg-slate-900 rounded-lg p-4 font-mono text-sm text-emerald-400 overflow-x-auto">
+            <pre>
+              {`<script 
+  src="${window.location.origin}/dist/embed/embed.js?store_id=${store.id}" 
+  async
+></script>`}
+            </pre>
+          </div>
+
+          <button
+            onClick={() => copyToClipboard(`<script src="${window.location.origin}/dist/embed/embed.js?store_id=${store.id}" async></script>`)}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-colors"
+          >
+            {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+            Copy Installation Code
+          </button>
         </div>
       )}
     </div>
