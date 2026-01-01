@@ -29,44 +29,52 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+
+const queryClient = new QueryClient();
+
 function App() {
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <ThemeProvider>
-          <SubscriptionProvider>
-            <BrowserRouter>
-              <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-200">
-                <Routes>
-                  <Route path="/" element={<Home />} />
-                  <Route path="/login" element={<Auth />} />
-                  <Route
-                    path="/dashboard"
-                    element={
-                      <ProtectedRoute>
-                        <Dashboard />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <ThemeProvider>
+            <SubscriptionProvider>
+              <BrowserRouter>
+                <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-200">
+                  <Routes>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/login" element={<Auth />} />
+                    <Route
+                      path="/dashboard"
+                      element={
+                        <ProtectedRoute>
+                          <Dashboard />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
 
-                <PaymentModal />
-                <Toaster
-                  position="top-right"
-                  toastOptions={{
-                    className: 'dark:bg-slate-800 dark:text-white',
-                    style: {
-                      background: 'var(--tw-prose-body)',
-                      color: 'var(--tw-prose-headings)',
-                    },
-                  }}
-                />
-              </div>
-            </BrowserRouter>
-          </SubscriptionProvider>
-        </ThemeProvider>
-      </AuthProvider>
+                  <PaymentModal />
+                  <Toaster
+                    position="top-right"
+                    toastOptions={{
+                      className: 'dark:bg-slate-800 dark:text-white',
+                      style: {
+                        background: 'var(--tw-prose-body)',
+                        color: 'var(--tw-prose-headings)',
+                      },
+                    }}
+                  />
+                </div>
+              </BrowserRouter>
+            </SubscriptionProvider>
+          </ThemeProvider>
+        </AuthProvider>
+        <ReactQueryDevtools initialIsOpen={false} />
+      </QueryClientProvider>
     </ErrorBoundary>
   );
 }

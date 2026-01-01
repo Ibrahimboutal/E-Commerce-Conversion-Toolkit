@@ -1,114 +1,25 @@
-import { useEffect, useState } from 'react';
-import { supabase, AbandonedCart, CartItem } from '../lib/supabase';
+import { useState } from 'react';
 import { Mail, DollarSign, Calendar, CheckCircle, XCircle, ExternalLink, FileDown, ShoppingCart } from 'lucide-react';
 import { exportToCSV } from '../utils/export';
 import { SkeletonList } from './ui/Skeleton';
 import EmptyState from './ui/EmptyState';
-import { notify, parseError } from '../lib/errorHandling';
-
-type CartWithItems = AbandonedCart & {
-  items?: CartItem[];
-};
+import { useAbandonedCarts } from '../hooks/useAbandonedCarts';
 
 export default function AbandonedCarts() {
-  const [carts, setCarts] = useState<CartWithItems[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    data: carts,
+    isLoading: loading,
+    error,
+    sendReminder,
+    markRecovered: markAsRecovered,
+    sendingReminderId,
+    isSendingReminder
+  } = useAbandonedCarts();
+
+  const sendingReminder = isSendingReminder ? sendingReminderId : null;
   const [filter, setFilter] = useState<'all' | 'pending' | 'sent' | 'recovered'>('all');
-  const [sendingReminder, setSendingReminder] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadCarts();
-  }, []);
-
-  const loadCarts = async () => {
-    try {
-      setError(null);
-      const { data: stores, error: storeError } = await supabase
-        .from('stores')
-        .select('id')
-        .maybeSingle();
-
-      if (storeError) throw storeError;
-
-      if (!stores) {
-        setLoading(false);
-        return;
-      }
-
-      const { data: cartsData, error: cartsError } = await supabase
-        .from('abandoned_carts')
-        .select('*')
-        .eq('store_id', stores.id)
-        .order('abandoned_at', { ascending: false });
-
-      if (cartsError) throw cartsError;
-
-      if (cartsData) {
-        const cartsWithItems = await Promise.all(
-          cartsData.map(async (cart) => {
-            const { data: items } = await supabase
-              .from('cart_items')
-              .select('*')
-              .eq('cart_id', cart.id);
-            return { ...cart, items: items || [] };
-          })
-        );
-        setCarts(cartsWithItems);
-      }
-    } catch (err) {
-      const errorMessage = parseError(err);
-      setError(errorMessage);
-      notify.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const sendReminder = async (cartId: string) => {
-    setSendingReminder(cartId);
-    const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-cart-reminder`;
-
-    try {
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ cart_id: cartId }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to send reminder');
-      }
-
-      notify.success('Reminder sent successfully!');
-      await loadCarts();
-    } catch (err) {
-      notify.error(err);
-    } finally {
-      setSendingReminder(null);
-    }
-  };
-
-  const markAsRecovered = async (cartId: string) => {
-    try {
-      const { error } = await supabase
-        .from('abandoned_carts')
-        .update({ recovered: true, recovered_at: new Date().toISOString() })
-        .eq('id', cartId);
-
-      if (error) throw error;
-
-      notify.success('Cart marked as recovered!');
-      await loadCarts();
-    } catch (err) {
-      notify.error(err);
-    }
-  };
-
-  const filteredCarts = carts.filter((cart) => {
+  const filteredCarts = (carts || []).filter((cart) => {
     if (filter === 'pending') return !cart.reminder_sent && !cart.recovered;
     if (filter === 'sent') return cart.reminder_sent && !cart.recovered;
     if (filter === 'recovered') return cart.recovered;
@@ -135,10 +46,10 @@ export default function AbandonedCarts() {
       <EmptyState
         icon={XCircle}
         title="Failed to load abandoned carts"
-        description={error}
+        description={(error as Error).message}
         action={{
           label: 'Try again',
-          onClick: loadCarts,
+          onClick: () => window.location.reload(), // Simple reload for now, or useQuery refetch
         }}
       />
     );
